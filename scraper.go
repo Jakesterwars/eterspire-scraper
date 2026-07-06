@@ -23,6 +23,12 @@ type PatchNotes struct {
 }
 
 func main() {
+	// No arguments provided, exit with a message
+	if len(os.Args) <= 1 {
+		fmt.Println("Please provide a valid URL to scrape")
+		return
+	}
+
 	args := os.Args
 	pageURL := args[1]
 	collector := colly.NewCollector()
