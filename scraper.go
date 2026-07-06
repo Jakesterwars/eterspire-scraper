@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 
 	"eterspire-scraper/helpers"
 
@@ -151,13 +153,22 @@ func main() {
 	defer file.Close()
 
 	fmt.Fprintln(file, "{{NewsPost|date="+patch.date+"|archive=}}")
-	fmt.Fprintln(file, "{{NewsDate|date="+patch.date+"}}")
+	fmt.Fprintln(file, "{{NewsDate|"+patch.date+"}}")
 	fmt.Fprintln(file, "\n{{NewsImage|"+patch.bigImage+"}}\n")
 
 	for _, section := range patch.sections {
-		fmt.Fprintln(file, "== "+section.name+" ==")
+		fmt.Fprintln(file, "=== "+section.name+" ===")
 		for _, note := range section.values {
 			fmt.Fprintln(file, note)
 		}
 	}
+
+	layout := "2006-01-02"
+	parsedDate, err := time.Parse(layout, patch.date)
+	if err != nil {
+		fmt.Println("Error parsing date:", err)
+		return
+	}
+	year := parsedDate.Year()
+	fmt.Fprintln(file, "\n[[Category:"+strconv.Itoa(year)+" news]]")
 }

@@ -65,6 +65,9 @@ func renderInline(node *html.Node) string {
 		switch tag {
 		case "a":
 			href := attrValue(node, "href")
+			if href == "discord.gg/eterspire" {
+				href = "https://discord.com/servers/eterspire-814967791840264232"
+			}
 			label := normalizeInline(content)
 			if href == "" {
 				return label
@@ -76,6 +79,12 @@ func renderInline(node *html.Node) string {
 			return "''" + content + "''"
 		case "br":
 			return "\n"
+		case "span":
+			class := attrValue(node, "class")
+			if class == "newthing" {
+				return "'''" + content + "'''"
+			}
+			return content
 		default:
 			return content
 		}
