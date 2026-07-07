@@ -65,7 +65,7 @@ func renderInline(node *html.Node) string {
 		switch tag {
 		case "a":
 			href := attrValue(node, "href")
-			if href == "discord.gg/eterspire" {
+			if strings.Contains(href, "discord.gg/eterspire") {
 				href = "https://discord.com/servers/eterspire-814967791840264232"
 			}
 			label := normalizeInline(content)
@@ -109,9 +109,23 @@ func FormatSelectionInline(sel *goquery.Selection) string {
 	return normalizeInline(out.String())
 }
 
-func DownloadImage(imageURL, dir string) {
-	fmt.Println("Downloading:", imageURL)
+func BuildAppendedFileName(base, appendToName string) string {
+	ext := filepath.Ext(base)
+	nameOnly := strings.TrimSuffix(base, ext)
+	finalName := nameOnly
+	appendTrimmed := strings.TrimSpace(appendToName)
+	nameLower := strings.ToLower(nameOnly)
+	containsAppend := appendToName != "" && strings.Contains(nameLower, strings.ToLower(appendToName))
+	containsTrimmedAppend := appendTrimmed != "" && strings.Contains(nameLower, strings.ToLower(appendTrimmed))
 
+	if appendToName != "" && !containsAppend && !containsTrimmedAppend {
+		finalName = fmt.Sprintf("%s%s", nameOnly, appendToName)
+	}
+
+	return fmt.Sprintf("%s%s", finalName, ext)
+}
+
+func DownloadImage(imageURL, dir string, appendToName string) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		fmt.Printf("Failed to create directory %s: %v\n", dir, err)
 		return
@@ -142,9 +156,11 @@ func DownloadImage(imageURL, dir string) {
 		base = "image"
 	}
 
-	fileName, err := url.PathUnescape(base)
+	newFileName := BuildAppendedFileName(base, appendToName)
+
+	fileName, err := url.PathUnescape(newFileName)
 	if err != nil {
-		fileName = base
+		fileName = newFileName
 	}
 	filePath := filepath.Join(dir, fileName)
 
@@ -161,8 +177,6 @@ func DownloadImage(imageURL, dir string) {
 		fmt.Printf("Failed to save image to %s: %v\n", filePath, err)
 		return
 	}
-
-	fmt.Printf("Saved image to %s\n", filePath)
 }
 
 func ResolveImageURL(pageURL, rawSrc string) string {

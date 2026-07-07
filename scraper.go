@@ -64,7 +64,7 @@ func main() {
 		patch.bigImage = filepath.Base(e.ChildAttr("img", "src"))
 		imageURL := helpers.ResolveImageURL(e.Request.URL.String(), e.ChildAttr("img", "src"))
 		if imageURL != "" {
-			helpers.DownloadImage(imageURL, patch.date+"-downloads")
+			helpers.DownloadImage(imageURL, patch.date+"-downloads", "")
 		} else {
 			fmt.Println("No valid image source found for header image")
 		}
@@ -75,20 +75,23 @@ func main() {
 
 			content := h4Elem.NextUntil("h4")
 
-			content.Filter("center, ul, p, div").Each(func(_ int, contentElems *goquery.Selection) {
+			content.Filter("center, ul, p, div, h3").Each(func(_ int, contentElems *goquery.Selection) {
 				tagName := strings.ToLower(contentElems.Nodes[0].Data)
 
 				switch tagName {
+				case "h3":
+					section.values = append(section.values, "<center>'''"+strings.TrimSpace(contentElems.Text())+"'''</center>\n")
+
 				case "center":
 					if h4Elem.Text() == "Fanart" {
 						section.values = append(section.values, "<gallery mode=\"nolines\" widths=\"200px\" heights=\"200px\">")
 						contentElems.Find("figure").Each(func(_ int, figureElem *goquery.Selection) {
-							var figCaption = figureElem.Find("figcaption").Text()
+							figCaption := helpers.FormatSelectionInline(figureElem.Find("figcaption"))
 							var imageBase = filepath.Base(figureElem.Find("img").AttrOr("src", ""))
 							var trimmedImageName = strings.TrimSuffix(imageBase, filepath.Ext(imageBase))
 							imageURL := helpers.ResolveImageURL(e.Request.URL.String(), figureElem.Find("img").AttrOr("src", ""))
 							if imageURL != "" {
-								helpers.DownloadImage(imageURL, patch.date+"-downloads")
+								helpers.DownloadImage(imageURL, patch.date+"-downloads", " "+patch.date)
 							} else {
 								fmt.Println("No valid image source found for header image")
 							}
@@ -96,6 +99,27 @@ func main() {
 							section.values = append(section.values, "File:"+trimmedImageName+" "+patch.date+".png | "+figCaption)
 						})
 						section.values = append(section.values, "</gallery>")
+					} else if contentElems.Find("figure").Length() > 0 {
+						contentElems.Find("figure").Each(func(_ int, figureElem *goquery.Selection) {
+							figCaption := helpers.FormatSelectionInline(figureElem.Find("figcaption"))
+							if filepath.Base(figureElem.Find("img").AttrOr("src", "")) == "creators_spotlight_separator.png" {
+								section.values = append(section.values, "{{Creator Spotlight Banner}}\n")
+							} else {
+								imageURL := helpers.ResolveImageURL(e.Request.URL.String(), figureElem.Find("img").AttrOr("src", ""))
+								caption := "\n"
+								if figCaption != "" {
+									caption = "\n<center>" + figCaption + "</center>\n"
+								}
+
+								if imageURL != "" {
+									helpers.DownloadImage(imageURL, patch.date+"-downloads", " "+patch.date)
+								} else {
+									fmt.Println("No valid image source found for header image")
+								}
+								imageName := helpers.BuildAppendedFileName(filepath.Base(figureElem.Find("img").AttrOr("src", "")), " "+patch.date)
+								section.values = append(section.values, "{{NewsImage|"+imageName+"}}"+caption)
+							}
+						})
 					} else {
 						contentElems.Find("img").Each(func(_ int, imgElem *goquery.Selection) {
 							if filepath.Base(imgElem.AttrOr("src", "")) == "creators_spotlight_separator.png" {
@@ -103,11 +127,12 @@ func main() {
 							} else {
 								imageURL := helpers.ResolveImageURL(e.Request.URL.String(), imgElem.AttrOr("src", ""))
 								if imageURL != "" {
-									helpers.DownloadImage(imageURL, patch.date+"-downloads")
+									helpers.DownloadImage(imageURL, patch.date+"-downloads", " "+patch.date)
 								} else {
 									fmt.Println("No valid image source found for header image")
 								}
-								section.values = append(section.values, "{{NewsImage|"+filepath.Base(imgElem.AttrOr("src", ""))+"}}\n")
+								imageName := helpers.BuildAppendedFileName(filepath.Base(imgElem.AttrOr("src", "")), " "+patch.date)
+								section.values = append(section.values, "{{NewsImage|"+imageName+"}}\n")
 							}
 						})
 					}
@@ -162,6 +187,8 @@ func main() {
 			fmt.Fprintln(file, note)
 		}
 	}
+
+	fmt.Fprintln(file, "\n=== Developer Teasers ===\n<gallery>\n</gallery>")
 
 	layout := "2006-01-02"
 	parsedDate, err := time.Parse(layout, patch.date)
