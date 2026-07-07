@@ -56,17 +56,38 @@ func main() {
 			return
 		}
 
+		const invalidImageSource = "No valid image source found for header image"
+
 		// Replace the default opening and closing [ ] around the date for future use
 		dateReplacer := strings.NewReplacer("[", "", "]", "")
 
 		// Setup base patch note information
 		patch.date = dateReplacer.Replace(e.ChildText(".section-date"))
+		downloadsDir := patch.date + "-downloads"
+		dateSuffix := " " + patch.date
 		patch.bigImage = filepath.Base(e.ChildAttr("img", "src"))
 		imageURL := helpers.ResolveImageURL(e.Request.URL.String(), e.ChildAttr("img", "src"))
 		if imageURL != "" {
-			helpers.DownloadImage(imageURL, patch.date+"-downloads", "")
+			helpers.DownloadImage(imageURL, downloadsDir, "")
 		} else {
-			fmt.Println("No valid image source found for header image")
+			fmt.Println(invalidImageSource)
+		}
+
+		downloadSectionImage := func(rawSrc string) {
+			imageURL := helpers.ResolveImageURL(e.Request.URL.String(), rawSrc)
+			if imageURL != "" {
+				helpers.DownloadImage(imageURL, downloadsDir, dateSuffix)
+			} else {
+				fmt.Println(invalidImageSource)
+			}
+		}
+
+		buildSectionImageName := func(rawSrc string) string {
+			return helpers.BuildAppendedFileName(filepath.Base(rawSrc), dateSuffix)
+		}
+
+		isSpotlightSeparator := func(rawSrc string) bool {
+			return filepath.Base(rawSrc) == "creators_spotlight_separator.png"
 		}
 
 		e.DOM.Find("h4").Each(func(_ int, h4Elem *goquery.Selection) {
@@ -87,54 +108,47 @@ func main() {
 						section.values = append(section.values, "<gallery mode=\"nolines\" widths=\"200px\" heights=\"200px\">")
 						contentElems.Find("figure").Each(func(_ int, figureElem *goquery.Selection) {
 							figCaption := helpers.FormatSelectionInline(figureElem.Find("figcaption"))
-							var imageBase = filepath.Base(figureElem.Find("img").AttrOr("src", ""))
-							var trimmedImageName = strings.TrimSuffix(imageBase, filepath.Ext(imageBase))
-							imageURL := helpers.ResolveImageURL(e.Request.URL.String(), figureElem.Find("img").AttrOr("src", ""))
-							if imageURL != "" {
-								helpers.DownloadImage(imageURL, patch.date+"-downloads", " "+patch.date)
-							} else {
-								fmt.Println("No valid image source found for header image")
-							}
+							rawSrc := figureElem.Find("img").AttrOr("src", "")
+							imageBase := filepath.Base(rawSrc)
+							trimmedImageName := strings.TrimSuffix(imageBase, filepath.Ext(imageBase))
+							downloadSectionImage(rawSrc)
 
 							section.values = append(section.values, "File:"+trimmedImageName+" "+patch.date+".png | "+figCaption)
 						})
 						section.values = append(section.values, "</gallery>")
-					} else if contentElems.Find("figure").Length() > 0 {
-						contentElems.Find("figure").Each(func(_ int, figureElem *goquery.Selection) {
-							figCaption := helpers.FormatSelectionInline(figureElem.Find("figcaption"))
-							if filepath.Base(figureElem.Find("img").AttrOr("src", "")) == "creators_spotlight_separator.png" {
-								section.values = append(section.values, "{{Creator Spotlight Banner}}\n")
-							} else {
-								imageURL := helpers.ResolveImageURL(e.Request.URL.String(), figureElem.Find("img").AttrOr("src", ""))
+					} else {
+						figures := contentElems.Find("figure")
+						if figures.Length() > 0 {
+							figures.Each(func(_ int, figureElem *goquery.Selection) {
+								rawSrc := figureElem.Find("img").AttrOr("src", "")
+								if isSpotlightSeparator(rawSrc) {
+									section.values = append(section.values, "{{Creator Spotlight Banner}}\n")
+									return
+								}
+
+								figCaption := helpers.FormatSelectionInline(figureElem.Find("figcaption"))
 								caption := "\n"
 								if figCaption != "" {
 									caption = "\n<center>" + figCaption + "</center>\n"
 								}
 
-								if imageURL != "" {
-									helpers.DownloadImage(imageURL, patch.date+"-downloads", " "+patch.date)
-								} else {
-									fmt.Println("No valid image source found for header image")
-								}
-								imageName := helpers.BuildAppendedFileName(filepath.Base(figureElem.Find("img").AttrOr("src", "")), " "+patch.date)
+								downloadSectionImage(rawSrc)
+								imageName := buildSectionImageName(rawSrc)
 								section.values = append(section.values, "{{NewsImage|"+imageName+"}}"+caption)
-							}
-						})
-					} else {
-						contentElems.Find("img").Each(func(_ int, imgElem *goquery.Selection) {
-							if filepath.Base(imgElem.AttrOr("src", "")) == "creators_spotlight_separator.png" {
-								section.values = append(section.values, "{{Creator Spotlight Banner}}\n")
-							} else {
-								imageURL := helpers.ResolveImageURL(e.Request.URL.String(), imgElem.AttrOr("src", ""))
-								if imageURL != "" {
-									helpers.DownloadImage(imageURL, patch.date+"-downloads", " "+patch.date)
-								} else {
-									fmt.Println("No valid image source found for header image")
+							})
+						} else {
+							contentElems.Find("img").Each(func(_ int, imgElem *goquery.Selection) {
+								rawSrc := imgElem.AttrOr("src", "")
+								if isSpotlightSeparator(rawSrc) {
+									section.values = append(section.values, "{{Creator Spotlight Banner}}\n")
+									return
 								}
-								imageName := helpers.BuildAppendedFileName(filepath.Base(imgElem.AttrOr("src", "")), " "+patch.date)
+
+								downloadSectionImage(rawSrc)
+								imageName := buildSectionImageName(rawSrc)
 								section.values = append(section.values, "{{NewsImage|"+imageName+"}}\n")
-							}
-						})
+							})
+						}
 					}
 
 				case "ul":

@@ -112,17 +112,19 @@ func FormatSelectionInline(sel *goquery.Selection) string {
 func BuildAppendedFileName(base, appendToName string) string {
 	ext := filepath.Ext(base)
 	nameOnly := strings.TrimSuffix(base, ext)
-	finalName := nameOnly
-	appendTrimmed := strings.TrimSpace(appendToName)
-	nameLower := strings.ToLower(nameOnly)
-	containsAppend := appendToName != "" && strings.Contains(nameLower, strings.ToLower(appendToName))
-	containsTrimmedAppend := appendTrimmed != "" && strings.Contains(nameLower, strings.ToLower(appendTrimmed))
-
-	if appendToName != "" && !containsAppend && !containsTrimmedAppend {
-		finalName = fmt.Sprintf("%s%s", nameOnly, appendToName)
+	if appendToName == "" {
+		return nameOnly + ext
 	}
 
-	return fmt.Sprintf("%s%s", finalName, ext)
+	nameLower := strings.ToLower(nameOnly)
+	appendLower := strings.ToLower(appendToName)
+	appendTrimmed := strings.TrimSpace(appendToName)
+
+	if strings.Contains(nameLower, appendLower) || (appendTrimmed != "" && strings.Contains(nameLower, strings.ToLower(appendTrimmed))) {
+		return nameOnly + ext
+	}
+
+	return nameOnly + appendToName + ext
 }
 
 func DownloadImage(imageURL, dir string, appendToName string) {
@@ -158,9 +160,9 @@ func DownloadImage(imageURL, dir string, appendToName string) {
 
 	newFileName := BuildAppendedFileName(base, appendToName)
 
-	fileName, err := url.PathUnescape(newFileName)
-	if err != nil {
-		fileName = newFileName
+	fileName := newFileName
+	if unescaped, err := url.PathUnescape(newFileName); err == nil {
+		fileName = unescaped
 	}
 	filePath := filepath.Join(dir, fileName)
 
