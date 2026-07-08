@@ -107,7 +107,7 @@ func main() {
 					if h4Elem.Text() == "Fanart" {
 						section.values = append(section.values, "<gallery mode=\"nolines\" widths=\"200px\" heights=\"200px\">")
 						contentElems.Find("figure").Each(func(_ int, figureElem *goquery.Selection) {
-							figCaption := helpers.FormatSelectionInline(figureElem.Find("figcaption"))
+							figCaption := helpers.FormatSelectionInline(figureElem.Find("figcaption"), patch.date)
 							rawSrc := figureElem.Find("img").AttrOr("src", "")
 							imageBase := filepath.Base(rawSrc)
 							trimmedImageName := strings.TrimSuffix(imageBase, filepath.Ext(imageBase))
@@ -126,7 +126,7 @@ func main() {
 									return
 								}
 
-								figCaption := helpers.FormatSelectionInline(figureElem.Find("figcaption"))
+								figCaption := helpers.FormatSelectionInline(figureElem.Find("figcaption"), patch.date)
 								caption := "\n"
 								if figCaption != "" {
 									caption = "\n<center>" + figCaption + "</center>\n"
@@ -154,7 +154,7 @@ func main() {
 				case "ul":
 					contentElems.Each(func(_ int, ulElem *goquery.Selection) {
 						ulElem.Find("li").Each(func(index int, liElem *goquery.Selection) {
-							line := helpers.FormatSelectionInline(liElem)
+							line := helpers.FormatSelectionInline(liElem, patch.date)
 							if line != "" {
 								var lastElement = ""
 								if index == ulElem.Find("li").Length()-1 {
@@ -166,7 +166,7 @@ func main() {
 					})
 
 				case "p":
-					line := helpers.FormatSelectionInline(contentElems)
+					line := helpers.FormatSelectionInline(contentElems, patch.date)
 					if line != "" {
 						section.values = append(section.values, line+"\n")
 					}

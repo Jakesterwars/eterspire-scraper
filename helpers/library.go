@@ -44,7 +44,7 @@ func normalizeInline(s string) string {
 }
 
 // Render the inline content of an HTML node to a string, handling specific tags for formatting
-func renderInline(node *html.Node) string {
+func renderInline(node *html.Node, date string) string {
 	if node == nil {
 		return ""
 	}
@@ -57,7 +57,7 @@ func renderInline(node *html.Node) string {
 		var inner strings.Builder
 
 		for child := node.FirstChild; child != nil; child = child.NextSibling {
-			inner.WriteString(renderInline(child))
+			inner.WriteString(renderInline(child, date))
 		}
 
 		content := inner.String()
@@ -67,7 +67,10 @@ func renderInline(node *html.Node) string {
 			href := attrValue(node, "href")
 			if strings.Contains(href, "discord.gg/eterspire") {
 				href = "https://discord.com/servers/eterspire-814967791840264232"
+			} else if strings.HasPrefix(href, "#") {
+				href = "https://www.eterspire.com/news/?date=" + date + href
 			}
+
 			label := normalizeInline(content)
 			if href == "" {
 				return label
@@ -94,7 +97,7 @@ func renderInline(node *html.Node) string {
 }
 
 // Format the inline content of a goquery selection to a string
-func FormatSelectionInline(sel *goquery.Selection) string {
+func FormatSelectionInline(sel *goquery.Selection, date string) string {
 	if sel == nil || len(sel.Nodes) == 0 {
 		return ""
 	}
@@ -102,7 +105,7 @@ func FormatSelectionInline(sel *goquery.Selection) string {
 	var out strings.Builder
 	for _, node := range sel.Nodes {
 		for child := node.FirstChild; child != nil; child = child.NextSibling {
-			out.WriteString(renderInline(child))
+			out.WriteString(renderInline(child, date))
 		}
 	}
 
