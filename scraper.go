@@ -117,38 +117,81 @@ func main() {
 						})
 						section.values = append(section.values, "</gallery>")
 					} else {
-						figures := contentElems.Find("figure")
-						if figures.Length() > 0 {
-							figures.Each(func(_ int, figureElem *goquery.Selection) {
-								rawSrc := figureElem.Find("img").AttrOr("src", "")
-								if isSpotlightSeparator(rawSrc) {
-									section.values = append(section.values, "{{Creator Spotlight Banner}}\n")
+						processCenterImage := func(rawSrc string, figCaption string) {
+							if rawSrc == "" {
+								return
+							}
+
+							if isSpotlightSeparator(rawSrc) {
+								section.values = append(section.values, "{{Creator Spotlight Banner}}\n")
+								return
+							}
+
+							downloadSectionImage(rawSrc)
+							imageName := buildSectionImageName(rawSrc)
+							if figCaption != "" {
+								section.values = append(section.values, "{{NewsImage|"+imageName+"}}\n<center>"+figCaption+"</center>\n")
+								return
+							}
+
+							section.values = append(section.values, "{{NewsImage|"+imageName+"}}\n")
+						}
+
+						processList := func(ulElem *goquery.Selection) {
+							ulElem.Find("li").Each(func(index int, liElem *goquery.Selection) {
+								line := helpers.FormatSelectionInline(liElem, patch.date)
+								if line == "" {
 									return
 								}
 
-								figCaption := helpers.FormatSelectionInline(figureElem.Find("figcaption"), patch.date)
-								caption := "\n"
-								if figCaption != "" {
-									caption = "\n<center>" + figCaption + "</center>\n"
+								lastElement := ""
+								if index == ulElem.Find("li").Length()-1 {
+									lastElement = "\n"
 								}
 
-								downloadSectionImage(rawSrc)
-								imageName := buildSectionImageName(rawSrc)
-								section.values = append(section.values, "{{NewsImage|"+imageName+"}}"+caption)
-							})
-						} else {
-							contentElems.Find("img").Each(func(_ int, imgElem *goquery.Selection) {
-								rawSrc := imgElem.AttrOr("src", "")
-								if isSpotlightSeparator(rawSrc) {
-									section.values = append(section.values, "{{Creator Spotlight Banner}}\n")
-									return
-								}
-
-								downloadSectionImage(rawSrc)
-								imageName := buildSectionImageName(rawSrc)
-								section.values = append(section.values, "{{NewsImage|"+imageName+"}}\n")
+								section.values = append(section.values, "* "+line+lastElement)
 							})
 						}
+
+						processParagraph := func(pElem *goquery.Selection) {
+							line := helpers.FormatSelectionInline(pElem, patch.date)
+							if line != "" {
+								section.values = append(section.values, line+"\n")
+							}
+						}
+
+						processDiv := func(divElem *goquery.Selection) {
+							divElem.Find("iframe").Each(func(_ int, iframeElem *goquery.Selection) {
+								section.values = append(section.values, "{{Youtube|link="+filepath.Base(iframeElem.AttrOr("src", ""))+"|align=center}}\n")
+							})
+						}
+
+						contentElems.Children().Each(func(_ int, child *goquery.Selection) {
+							tag := goquery.NodeName(child)
+
+							switch tag {
+							case "figure":
+								rawSrc := child.Find("img").First().AttrOr("src", "")
+								figCaption := helpers.FormatSelectionInline(child.Find("figcaption"), patch.date)
+								processCenterImage(rawSrc, figCaption)
+
+							case "img":
+								rawSrc := child.AttrOr("src", "")
+								processCenterImage(rawSrc, "")
+
+							case "p":
+								processParagraph(child)
+
+							case "ul":
+								processList(child)
+
+							case "div":
+								processDiv(child)
+
+							case "br":
+								// Ignore soft breaks so they do not produce empty output entries.
+							}
+						})
 					}
 
 				case "ul":
