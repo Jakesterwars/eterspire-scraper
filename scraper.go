@@ -239,7 +239,7 @@ func main() {
 	fmt.Fprintln(file, "\n{{NewsImage|"+patch.bigImage+"}}\n")
 
 	for _, section := range patch.sections {
-		fmt.Fprintln(file, "=== "+section.name+" ===")
+		fmt.Fprintln(file, "{{NewsHeader|"+section.name+"}}")
 		for _, note := range section.values {
 			fmt.Fprintln(file, note)
 		}
