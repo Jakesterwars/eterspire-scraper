@@ -245,7 +245,7 @@ func main() {
 		}
 	}
 
-	fmt.Fprintln(file, "\n=== Developer Teasers ===\n<gallery>\n</gallery>")
+	fmt.Fprintln(file, "\n=== Developer Teasers ===\n<gallery mode=\"nolines\" widths=\"200px\" heights=\"200px\">\n</gallery>")
 
 	layout := "2006-01-02"
 	parsedDate, err := time.Parse(layout, patch.date)
