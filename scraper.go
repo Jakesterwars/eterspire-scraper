@@ -179,6 +179,22 @@ func main() {
 								rawSrc := child.AttrOr("src", "")
 								processCenterImage(rawSrc, "")
 
+							case "a":
+								figures := child.Find("figure")
+								if figures.Length() > 0 {
+									figures.Each(func(_ int, figureElem *goquery.Selection) {
+										rawSrc := figureElem.Find("img").First().AttrOr("src", "")
+										figCaption := helpers.FormatSelectionInline(figureElem.Find("figcaption"), patch.date)
+										processCenterImage(rawSrc, figCaption)
+									})
+									return
+								}
+
+								child.Find("img").Each(func(_ int, imgElem *goquery.Selection) {
+									rawSrc := imgElem.AttrOr("src", "")
+									processCenterImage(rawSrc, "")
+								})
+
 							case "p":
 								processParagraph(child)
 
