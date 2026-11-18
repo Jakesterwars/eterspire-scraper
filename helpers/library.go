@@ -131,28 +131,32 @@ func BuildAppendedFileName(base, appendToName string) string {
 }
 
 func DownloadImage(imageURL, dir string, appendToName string) {
+	DownloadFile(imageURL, dir, appendToName)
+}
+
+func DownloadFile(fileURL, dir string, appendToName string) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		fmt.Printf("Failed to create directory %s: %v\n", dir, err)
 		return
 	}
 
 	// Make the HTTP GET request
-	resp, err := http.Get(imageURL)
+	resp, err := http.Get(fileURL)
 	if err != nil {
-		fmt.Printf("Failed to download %s: %v\n", imageURL, err)
+		fmt.Printf("Failed to download %s: %v\n", fileURL, err)
 		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		fmt.Printf("Failed to download %s, status code: %d\n", imageURL, resp.StatusCode)
+		fmt.Printf("Failed to download %s, status code: %d\n", fileURL, resp.StatusCode)
 		return
 	}
 
 	// Create the local file
-	parsedURL, err := url.Parse(imageURL)
+	parsedURL, err := url.Parse(fileURL)
 	if err != nil {
-		fmt.Printf("Failed to parse image URL %s: %v\n", imageURL, err)
+		fmt.Printf("Failed to parse file URL %s: %v\n", fileURL, err)
 		return
 	}
 

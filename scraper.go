@@ -90,6 +90,63 @@ func main() {
 			return filepath.Base(rawSrc) == "creators_spotlight_separator.png"
 		}
 
+		processSectionImage := func(rawSrc string, figCaption string) {
+			if rawSrc == "" {
+				return
+			}
+
+			if isSpotlightSeparator(rawSrc) {
+				section.values = append(section.values, "{{Creator Spotlight Banner}}\n")
+				return
+			}
+
+			downloadSectionImage(rawSrc)
+			imageName := buildSectionImageName(rawSrc)
+			if figCaption != "" {
+				section.values = append(section.values, "{{NewsImage|"+imageName+"}}\n<center>"+figCaption+"</center>\n")
+				return
+			}
+
+			section.values = append(section.values, "{{NewsImage|"+imageName+"}}\n")
+		}
+
+		processSectionVideo := func(rawSrc string, figCaption string) {
+			if rawSrc == "" {
+				return
+			}
+
+			fileURL := helpers.ResolveImageURL(e.Request.URL.String(), rawSrc)
+			if fileURL == "" {
+				fmt.Println("No valid video source found")
+				return
+			}
+
+			helpers.DownloadFile(fileURL, downloadsDir, dateSuffix)
+			fileName := buildSectionImageName(rawSrc)
+			section.values = append(section.values, "[[File:"+fileName+"|center]]\n")
+			if figCaption != "" {
+				section.values = append(section.values, "<center>"+figCaption+"</center>\n")
+			}
+		}
+
+		processDiv := func(divElem *goquery.Selection) {
+			divElem.Find("iframe").Each(func(_ int, iframeElem *goquery.Selection) {
+				section.values = append(section.values, "{{Youtube|link="+filepath.Base(iframeElem.AttrOr("src", ""))+"|align=center}}\n")
+			})
+			divElem.Find("img").Each(func(_ int, imgElem *goquery.Selection) {
+				figCaption := helpers.FormatSelectionInline(imgElem.Closest("figure").Find("figcaption"), patch.date)
+				processSectionImage(imgElem.AttrOr("src", ""), figCaption)
+			})
+			divElem.Find("video").Each(func(_ int, videoElem *goquery.Selection) {
+				rawSrc := videoElem.Find("source").First().AttrOr("src", "")
+				if rawSrc == "" {
+					rawSrc = videoElem.AttrOr("src", "")
+				}
+				figCaption := helpers.FormatSelectionInline(videoElem.Closest("figure").Find("figcaption"), patch.date)
+				processSectionVideo(rawSrc, figCaption)
+			})
+		}
+
 		e.DOM.Find("h4").Each(func(_ int, h4Elem *goquery.Selection) {
 			section = Section{}
 			section.name = strings.TrimSpace(h4Elem.Text())
@@ -117,26 +174,6 @@ func main() {
 						})
 						section.values = append(section.values, "</gallery>")
 					} else {
-						processCenterImage := func(rawSrc string, figCaption string) {
-							if rawSrc == "" {
-								return
-							}
-
-							if isSpotlightSeparator(rawSrc) {
-								section.values = append(section.values, "{{Creator Spotlight Banner}}\n")
-								return
-							}
-
-							downloadSectionImage(rawSrc)
-							imageName := buildSectionImageName(rawSrc)
-							if figCaption != "" {
-								section.values = append(section.values, "{{NewsImage|"+imageName+"}}\n<center>"+figCaption+"</center>\n")
-								return
-							}
-
-							section.values = append(section.values, "{{NewsImage|"+imageName+"}}\n")
-						}
-
 						processList := func(ulElem *goquery.Selection) {
 							ulElem.Find("li").Each(func(index int, liElem *goquery.Selection) {
 								line := helpers.FormatSelectionInline(liElem, patch.date)
@@ -160,12 +197,6 @@ func main() {
 							}
 						}
 
-						processDiv := func(divElem *goquery.Selection) {
-							divElem.Find("iframe").Each(func(_ int, iframeElem *goquery.Selection) {
-								section.values = append(section.values, "{{Youtube|link="+filepath.Base(iframeElem.AttrOr("src", ""))+"|align=center}}\n")
-							})
-						}
-
 						contentElems.Children().Each(func(_ int, child *goquery.Selection) {
 							tag := goquery.NodeName(child)
 
@@ -173,11 +204,11 @@ func main() {
 							case "figure":
 								rawSrc := child.Find("img").First().AttrOr("src", "")
 								figCaption := helpers.FormatSelectionInline(child.Find("figcaption"), patch.date)
-								processCenterImage(rawSrc, figCaption)
+								processSectionImage(rawSrc, figCaption)
 
 							case "img":
 								rawSrc := child.AttrOr("src", "")
-								processCenterImage(rawSrc, "")
+								processSectionImage(rawSrc, "")
 
 							case "a":
 								figures := child.Find("figure")
@@ -185,14 +216,14 @@ func main() {
 									figures.Each(func(_ int, figureElem *goquery.Selection) {
 										rawSrc := figureElem.Find("img").First().AttrOr("src", "")
 										figCaption := helpers.FormatSelectionInline(figureElem.Find("figcaption"), patch.date)
-										processCenterImage(rawSrc, figCaption)
+										processSectionImage(rawSrc, figCaption)
 									})
 									return
 								}
 
 								child.Find("img").Each(func(_ int, imgElem *goquery.Selection) {
 									rawSrc := imgElem.AttrOr("src", "")
-									processCenterImage(rawSrc, "")
+									processSectionImage(rawSrc, "")
 								})
 
 							case "p":
@@ -231,9 +262,7 @@ func main() {
 					}
 
 				case "div":
-					contentElems.Find("iframe").Each(func(_ int, iframeElem *goquery.Selection) {
-						section.values = append(section.values, "{{Youtube|link="+filepath.Base(iframeElem.AttrOr("src", ""))+"|align=center}}\n")
-					})
+					processDiv(contentElems)
 				}
 			})
 
